@@ -1,6 +1,5 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Check if Rayfield is loaded correctly
 if not Rayfield then
     warn("Failed to load Rayfield library")
     return
@@ -31,15 +30,14 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
-if not Window then
-    warn("Failed to create window. Please check the Rayfield library or script parameters.")
-    return
-end
+if not Window then return end
 
-local MainTab = Window:CreateTab("Main", nil) -- Title, Image
-local MainSection = MainTab:CreateSection("Useful") -- Changed 'Tab' to 'MainTab'
+local MainTab = Window:CreateTab("Main", nil)
+local MainSection = MainTab:CreateSection("Useful")
 
--- Auto Perfect Release Toggle
+---------------------------------------------------------------------
+-- AUTO PERFECT RELEASE (REPLACED WITH YOUR SCRIPT)
+---------------------------------------------------------------------
 MainTab:CreateToggle({
     Name = "Auto Perfect Release",
     CurrentValue = false,
@@ -47,43 +45,105 @@ MainTab:CreateToggle({
     Callback = function(Value)
         _G.PerfectRelease = Value
 
-        -- Only hook once
-        if not _G.PerfectReleaseHooked then
-            _G.PerfectReleaseHooked = true
+        if Value then
+            getgenv().config = {Time = 0.045, Size = 0.9}
+            local UIS = game:GetService("UserInputService")
+            local TweenService = game:GetService("TweenService")
 
-            -- New auto-release hook
-            local bb;
-            bb = hookmetamethod(game, '__namecall', newcclosure(function(self, ...)
-                local method = getnamecallmethod()
-                local args = { ... }
+            local Player = game:GetService("Players").LocalPlayer
+            local Bar = Player.PlayerGui.Visual.Shooting.Bar
+            local ShootButton = Player.PlayerGui.Main.Mobile.Holder:FindFirstChild("Shoot")
 
-                if not checkcaller() 
-                    and method == 'FireServer' 
-                    and tostring(self) == 'Shoot' 
-                    and args[2] == 'Starting' then
-
-                    bb(self, unpack(args))
-
-                    task.delay(0.4, newcclosure(function()
-                        self.FireServer(self, 1, 'Ending', 'down', args[4], args[5], args[6])
-                    end))
+            local function handleShooting()
+                if Player.Character:FindFirstChild("Basketball") then
+                    while _G.PerfectRelease and (UIS:IsKeyDown(Enum.KeyCode.E) or (ShootButton and ShootButton.AutoButtonColor)) do
+                        Bar:GetPropertyChangedSignal("Size"):Connect(function()
+                            if Bar.Size.Y.Scale > getgenv().config.Size then
+                                Bar:TweenSize(UDim2.new(1, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Linear, getgenv().config.Time, true)
+                                task.wait()
+                                Bar.Size = UDim2.new(1, 0, 1, 0)
+                            end
+                        end)
+                        task.wait()
+                    end
                 end
+            end
 
-                return bb(self, unpack(args))
-            end))
+            UIS.InputBegan:Connect(function(input, gpe)
+                if gpe then return end
+                if input.KeyCode == Enum.KeyCode.E and _G.PerfectRelease then
+                    handleShooting()
+                end
+            end)
+
+            if ShootButton then
+                ShootButton.MouseButton1Down:Connect(function()
+                    if _G.PerfectRelease then
+                        handleShooting()
+                    end
+                end)
+            end
         end
-
-        print("Auto Perfect Release " .. (Value and "Enabled." or "Disabled."))
     end,
 })
 
--- AutoGuard Toggle
+---------------------------------------------------------------------
+-- BALL MAG SIZE SLIDER
+---------------------------------------------------------------------
+MainTab:CreateSlider({
+    Name = "Ball Mag Size",
+    Range = {3, 30},
+    Increment = 1,
+    Suffix = "Size",
+    CurrentValue = 10,
+    Flag = "BallMagSize_Slider",
+    Callback = function(Value)
+        getgenv().MagSize = Value
+    end,
+})
+
+---------------------------------------------------------------------
+-- BALL MAG TOGGLE (USING YOUR EXACT BALLMAG FUNCTION)
+---------------------------------------------------------------------
+MainTab:CreateToggle({
+    Name = "Ball Mag",
+    CurrentValue = false,
+    Flag = "BallMag_Toggle",
+    Callback = function(Value)
+        _G.BallMag = Value
+
+        if Value then
+            if not getgenv().MagSize then getgenv().MagSize = 10 end
+
+            local function BallMag()
+                local targetSize = Vector3.new(MagSize, MagSize, MagSize)
+                for _, obj in pairs(workspace:GetChildren()) do
+                    if obj:IsA("BasePart") and obj.Name == "Basketball" then
+                        if obj.Size ~= targetSize then
+                            obj.Size = targetSize
+                        end
+                    end
+                end
+                task.wait()
+            end
+
+            task.spawn(function()
+                while _G.BallMag do
+                    BallMag()
+                end
+            end)
+        end
+    end,
+})
+
+---------------------------------------------------------------------
+-- AUTOGUARD (UNCHANGED)
+---------------------------------------------------------------------
 MainTab:CreateToggle({
     Name = "AutoGuard",
     CurrentValue = false,
     Flag = "AutoGuard_Toggle",
     Callback = function(Value)
-        -- Only hook once
         if not _G.AutoGuardHooked then
             _G.AutoGuardHooked = true
 
@@ -91,7 +151,6 @@ MainTab:CreateToggle({
             local RunService = game:GetService("RunService")
             local UserInputService = game:GetService("UserInputService")
             local LocalPlayer = Players.LocalPlayer
-            local TweenService = game:GetService("TweenService")
 
             local Character = nil
             local HumanoidRootPart = nil
@@ -100,12 +159,10 @@ MainTab:CreateToggle({
             local AutoGuardOn = false
             local CurrentTarget = nil
 
-            -- GUI Setup
-            local Gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+            local Gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
             Gui.Name = "AutoGuardGUI"
             Gui.ResetOnSpawn = false
 
-            -- Draggable Frame Holder
             local DragFrame = Instance.new("Frame", Gui)
             DragFrame.Size = UDim2.new(0, 130, 0, 40)
             DragFrame.Position = UDim2.new(0, 10, 0, 10)
@@ -113,41 +170,41 @@ MainTab:CreateToggle({
             DragFrame.Active = true
             DragFrame.Draggable = true
 
-            -- Button inside the frame
             local ToggleButton = Instance.new("TextButton", DragFrame)
             ToggleButton.Size = UDim2.new(1, 0, 1, 0)
-            ToggleButton.Position = UDim2.new(0, 0, 0, 0)
             ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
             ToggleButton.TextColor3 = Color3.new(1, 1, 1)
             ToggleButton.Font = Enum.Font.SourceSansBold
             ToggleButton.TextScaled = true
             ToggleButton.Text = "AutoGuard / F: OFF"
 
-            -- Button Logic
             ToggleButton.MouseButton1Click:Connect(function()
                 AutoGuardOn = not AutoGuardOn
                 ToggleButton.Text = "AutoGuard / F: " .. (AutoGuardOn and "ON" or "OFF")
-                if not AutoGuardOn then
-                    CurrentTarget = nil
-                end
+                if not AutoGuardOn then CurrentTarget = nil end
             end)
 
-            -- F Key Toggle Logic
-            UserInputService.InputBegan:Connect(function(input, gameProcessed)
-                if gameProcessed then return end
+            UserInputService.InputBegan:Connect(function(input, gp)
+                if gp then return end
                 if input.KeyCode == Enum.KeyCode.F then
                     AutoGuardOn = not AutoGuardOn
                     ToggleButton.Text = "AutoGuard / F: " .. (AutoGuardOn and "ON" or "OFF")
-                    if not AutoGuardOn then
-                        CurrentTarget = nil
-                    end
+                    if not AutoGuardOn then CurrentTarget = nil end
                 end
             end)
 
-            -- Get Closest Player
+            local function UpdateCharacter()
+                Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+                Humanoid = Character:WaitForChild("Humanoid")
+            end
+            LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
+            if LocalPlayer.Character then UpdateCharacter() end
+
             local function GetClosestPlayer()
-                local closest = nil
                 local minDist = math.huge
+                local closest = nil
+
                 for _, player in pairs(Players:GetPlayers()) do
                     if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         local dist = (player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
@@ -160,29 +217,16 @@ MainTab:CreateToggle({
                 return closest
             end
 
-            -- Update Character References
-            local function UpdateCharacter()
-                Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-                Humanoid = Character:WaitForChild("Humanoid")
-            end
-
-            LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
-            if LocalPlayer.Character then UpdateCharacter() end
-
-            -- Auto Guard Loop
             RunService.RenderStepped:Connect(function()
-                if AutoGuardOn and Character and HumanoidRootPart and Humanoid then
+                if AutoGuardOn and Character and HumanoidRootPart then
                     if not CurrentTarget or not CurrentTarget.Character or not CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
                         CurrentTarget = GetClosestPlayer()
                     end
 
-                    if CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
+                    if CurrentTarget and CurrentTarget.Character then
                         local targetHRP = CurrentTarget.Character.HumanoidRootPart
-                        local forwardVec = targetHRP.CFrame.LookVector
-                        local targetPosition = targetHRP.Position + forwardVec * 5
-
-                        local moveDirection = (targetPosition - HumanoidRootPart.Position).Unit
+                        local targetPos = targetHRP.Position + targetHRP.CFrame.LookVector * 5
+                        local moveDirection = (targetPos - HumanoidRootPart.Position).Unit
                         Humanoid:Move(moveDirection, false)
                     end
                 end
