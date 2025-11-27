@@ -1,0 +1,11 @@
+local function BallMag()
+    local targetSize = Vector3.new(MagSize, MagSize, MagSize)
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("BasePart") and obj.Name == "Basketball" then
+            if obj.Size ~= targetSize then
+                obj.Size = targetSize
+            end
+        end
+    end
+    wait()
+end
