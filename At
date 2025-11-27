@@ -1,0 +1,43 @@
+getgenv().config = {Time = 0.045, Size = 0.9}
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local Player = game:GetService("Players").LocalPlayer
+local Bar = Player.PlayerGui.Visual.Shooting.Bar
+
+-- Path to the "Shoot" button
+local ShootButton = Player.PlayerGui.Main.Mobile.Holder:FindFirstChild("Shoot")
+
+-- Function to handle the shooting logic
+local function handleShooting()
+    if Player.Character:FindFirstChild("Basketball") then
+        while UIS:IsKeyDown(Enum.KeyCode.E) or (ShootButton and ShootButton:IsA("ImageButton") and ShootButton.AutoButtonColor) do
+            Bar:GetPropertyChangedSignal("Size"):Connect(function()
+                if Bar.Size.Y.Scale > getgenv().config.Size then
+                    Bar:TweenSize(UDim2.new(1, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Linear, getgenv().config.Time, true)
+                    task.wait()
+                    Bar.Size = UDim2.new(1, 0, 1, 0)
+                end
+            end)
+            task.wait()
+        end
+    end
+end
+
+-- Connect to the InputBegan event
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        handleShooting()
+    end
+end)
+
+-- Connect to the "Shoot" button click and hold events
+if ShootButton and ShootButton:IsA("ImageButton") then
+    ShootButton.MouseButton1Down:Connect(function()
+        handleShooting()
+    end)
+    ShootButton.MouseButton1Up:Connect(function()
+        -- Optional: Stop shooting logic when the button is released
+    end)
+end 
